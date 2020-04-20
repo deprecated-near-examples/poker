@@ -79,8 +79,9 @@ if __name__ == '__main__':
     parser.add_argument(
         'node_key', help="Path to validator key. Usually in neardev/*/<account_id>.json.")
     parser.add_argument('--contract', help="Contract to use", default=CONTRACT)
+    parser.add_argument('--nodeUrl', help="NEAR Rpc endpoint")
 
     args = parser.parse_args()
 
-    app = PokerCli(args.node_key, args.contract)
+    app = PokerCli(args.node_key, args.contract, args.nodeUrl)
     app.start()

@@ -30,9 +30,10 @@ class Command:
 
 
 class Near:
-    def __init__(self, node_key_path, contract):
+    def __init__(self, node_key_path, contract, nodeUrl):
         self.node_key_path = node_key_path
         self.contract = contract
+        self.node_url = nodeUrl
         self.account_id = get_account_id(node_key_path)
 
     def _parse(self, output):
@@ -47,6 +48,11 @@ class Near:
         output = '\n'.join(lines[pos + 1:])
         return parse(output)
 
+    def add_command_url(self, command):
+        if self.node_url:
+            command.extend(["--nodeUrl", self.node_url])
+        return command
+
     def view(self, name, args={}):
         command = [
             "near",
@@ -59,6 +65,8 @@ class Near:
             "--masterAccount",
             self.account_id
         ]
+        command = self.add_node_url(command)
+
         logging.debug(f"View Command: {command}")
         proc = Popen(command, stdout=PIPE)
 
@@ -82,6 +90,7 @@ class Near:
             "--accountId",
             self.account_id
         ]
+        command = self.add_node_url(command)
 
         logging.debug(f"Change Command: {command}")
         proc = Popen(command, stdout=PIPE)
