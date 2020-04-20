@@ -1,4 +1,6 @@
+use crate::deck::Deck;
 use crate::game::{Game, GameError, GameStatus};
+use crate::poker::Poker;
 use crate::types::{CryptoHash, RoomId};
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_bindgen::near_bindgen;
@@ -92,7 +94,8 @@ impl Lobby {
     }
 }
 
-//Game interface for lobby
+/// Game interface for lobby
+#[near_bindgen]
 impl Lobby {
     pub fn enter(&mut self, room_id: RoomId) -> Result<(), GameError> {
         self.room_mut(room_id)?.enter()
@@ -105,9 +108,22 @@ impl Lobby {
     pub fn close(&mut self, room_id: RoomId) -> Result<(), GameError> {
         self.room_mut(room_id)?.close()
     }
+
+    pub fn deck_state(&self, room_id: RoomId) -> Result<Deck, GameError> {
+        Ok(self.room_ref(room_id)?.deck_state())
+    }
+
+    pub fn poker_state(&self, room_id: RoomId) -> Result<Poker, GameError> {
+        Ok(self.room_ref(room_id)?.poker_state())
+    }
+
+    pub fn state(&self, room_id: RoomId) -> Result<GameStatus, GameError> {
+        Ok(self.room_ref(room_id)?.state())
+    }
 }
 
-// Deck interface for lobby
+/// Deck interface for lobby
+#[near_bindgen]
 impl Lobby {
     pub fn get_partial_shuffle(&self, room_id: RoomId) -> Result<Vec<CryptoHash>, GameError> {
         self.room_ref(room_id)?

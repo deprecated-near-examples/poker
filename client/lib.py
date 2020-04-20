@@ -60,7 +60,7 @@ class Near:
             self.account_id
         ]
         logging.debug(f"View Command: {command}")
-        proc = Popen(command, stdout=PIPE)
+        proc = Popen(command, stdout=PIPE, stderr=PIPE)
 
         ret = proc.wait()
         logging.debug(f"Exit code: {ret}")
@@ -95,7 +95,7 @@ class Near:
             logging.warn(f"Command stderr: {proc.stderr.read().decode()}")
 
 
-def register(function=None, short=None, name=None):
+def register(function=None, *, short=None, name=None):
     if function is None:
         def dec(function):
             function._command = True
@@ -144,6 +144,10 @@ class App:
                 print(f"[{command.short}]{command.name}")
 
     def feed(self, command):
+        command = command.strip(' ')
+        if not command:
+            return
+
         comm, *args = command.split()
 
         if not comm in self._commands:
@@ -153,7 +157,7 @@ class App:
             callback = self._commands[comm].callback
             try:
                 callback(*args)
-            except TypeError as e:
+            except Exception as e:
                 print(*e.args)
         print()
 
@@ -161,6 +165,7 @@ class App:
         print(
             f"Welcome to poker game {self.account_id}. Print [h]help for options.")
         logging.info(f"Start game with: {self.account_id}")
+
         while True:
             command = input(">>> ")
             self.feed(command)

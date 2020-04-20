@@ -30,7 +30,7 @@ impl Stage {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Serialize, Clone)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Clone, Eq, PartialEq)]
 pub enum PokerStatus {
     Idle,
     Dealing {
@@ -71,20 +71,6 @@ pub enum PokerError {
     NotBettingTurn,
 }
 
-pub enum ActionRequest {
-    /// Deal one card to a particular player or to the table.
-    Deal(Option<PlayerId>),
-    /// Waiting from the bet of one player.
-    BetFrom(PlayerId),
-    /// Reveal one card from one player.
-    Reveal {
-        player_id: PlayerId,
-        first_card: bool,
-    },
-    /// Waiting for revealed cards.
-    RevealedCards,
-}
-
 pub enum BetAction {
     Fold,
     Stake(u64),
@@ -99,7 +85,7 @@ pub struct ActionResponse {
 //       Mainly regarding card signatures.
 
 /// Raw poker implementation.
-#[derive(BorshDeserialize, BorshSerialize, Serialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Clone)]
 pub struct Poker {
     /// Number of tokens each player has available.
     tokens: Vec<u64>,
@@ -114,9 +100,6 @@ pub struct Poker {
     /// Player which is the big blind on next round.
     big_blind: PlayerId,
 }
-
-// TODO: When game finishes multiply blind_token * 2
-// TODO: When game finishes increase big_blind + 1 mod num_players
 
 impl Poker {
     pub fn new() -> Self {
@@ -185,7 +168,7 @@ impl Poker {
         Ok(())
     }
 
-    pub fn next(&mut self) -> ActionRequest {
+    pub fn next(&mut self) {
         match self.status.clone() {
             PokerStatus::Idle => {
                 // Make small blind and big blinds bet
@@ -197,7 +180,6 @@ impl Poker {
                     player_id: 0,
                     first_card: true,
                 };
-                ActionRequest::Deal(Some(0))
             }
             PokerStatus::Dealing {
                 player_id,
@@ -208,7 +190,6 @@ impl Poker {
                         player_id,
                         first_card: false,
                     };
-                    ActionRequest::Deal(Some(player_id))
                 } else {
                     if player_id + 1 == self.num_players() {
                         // All cards where already dealt. Start first round of betting.
@@ -220,13 +201,11 @@ impl Poker {
                             max_stake: self.blind_token,
                             next_stage: Stage::Flop,
                         };
-                        ActionRequest::BetFrom(target)
                     } else {
                         self.status = PokerStatus::Dealing {
                             player_id: player_id + 1,
                             first_card: true,
                         };
-                        ActionRequest::Deal(Some(player_id + 1))
                     }
                 }
             }
@@ -244,13 +223,11 @@ impl Poker {
                         max_stake: self.blind_token,
                         next_stage: stage.next(),
                     };
-                    ActionRequest::BetFrom(target)
                 } else {
                     self.status = PokerStatus::Revealing {
                         stage,
                         missing_to_reveal: missing_to_reveal - 1,
                     };
-                    ActionRequest::Deal(None)
                 }
             }
             PokerStatus::Showdown {
@@ -262,32 +239,23 @@ impl Poker {
                         player_id,
                         first_card: false,
                     };
-                    ActionRequest::Reveal {
-                        player_id,
-                        first_card: false,
-                    }
                 } else {
                     let next_player = self.next_on_game(player_id);
 
                     if next_player < player_id {
                         // All cards were revealed
                         self.status = PokerStatus::WaitingRevealedCards;
-                        ActionRequest::RevealedCards
                     } else {
                         self.status = PokerStatus::Showdown {
                             player_id: next_player,
                             first_card: true,
                         };
-                        ActionRequest::Reveal {
-                            player_id: next_player,
-                            first_card: true,
-                        }
                     }
                 }
             }
             PokerStatus::Betting { .. } => panic!("Called next on betting state."),
             PokerStatus::WaitingRevealedCards => {
-                panic!("Called next while waiting for reveald cards.")
+                panic!("Called next while waiting for revealed cards.")
             }
         }
     }
@@ -295,39 +263,37 @@ impl Poker {
     /// Finish
     fn finish(&mut self, _winners: Vec<PlayerId>) {
         self.status = PokerStatus::Idle;
+        self.big_blind = self.next_player(self.big_blind);
+        self.blind_token *= 2;
         // TODO: Reassign stake to winners.
+        // TODO: Reset state
     }
 
-    fn start_stage(&mut self, stage: Stage) -> ActionRequest {
+    fn start_stage(&mut self, stage: Stage) {
         if stage == Stage::Showdown {
             self.status = PokerStatus::Showdown {
                 player_id: self.next_on_game(0),
                 first_card: true,
             };
-
-            ActionRequest::Reveal {
-                player_id: self.next_on_game(0),
-                first_card: true,
-            }
         } else {
             let missing_to_reveal = stage.cards_to_reveal() - 1;
             self.status = PokerStatus::Revealing {
                 stage,
                 missing_to_reveal,
             };
-            ActionRequest::Deal(None)
         }
     }
 
     pub fn submit_revealed_cards(&mut self, _cards: ()) {
+        if self.status != PokerStatus::WaitingRevealedCards {
+            panic!("Not waiting revealed cards");
+        }
+
         // TODO: Implement cards find
         self.finish(vec![]);
     }
 
-    pub fn submit_bet_action(
-        &mut self,
-        action: ActionResponse,
-    ) -> Result<Option<ActionRequest>, PokerError> {
+    pub fn submit_bet_action(&mut self, action: ActionResponse) -> Result<(), PokerError> {
         match self.status.clone() {
             PokerStatus::Betting {
                 target,
@@ -348,9 +314,16 @@ impl Poker {
                         if self.total_folded() + 1 == self.num_players() {
                             // All players but one have folded. That is the winner.
                             self.finish(vec![next_player]);
-                            Ok(None)
+                            Ok(())
                         } else {
-                            Ok(Some(ActionRequest::BetFrom(next_player)))
+                            self.status = PokerStatus::Betting {
+                                target: next_player,
+                                until,
+                                raised,
+                                max_stake,
+                                next_stage,
+                            };
+                            Ok(())
                         }
                     }
                     BetAction::Stake(stake) => {
@@ -368,16 +341,25 @@ impl Poker {
                                 // Call
                                 if action.player_id == until {
                                     // Finish betting round. All players call big blind bet.
-                                    Ok(Some(self.start_stage(next_stage)))
+                                    self.start_stage(next_stage);
+                                    Ok(())
                                 } else {
                                     let next_player =
                                         self.next_on_game(self.next_player(action.player_id));
                                     if next_player != until || !raised {
                                         // Missing some players to place their bets.
-                                        Ok(Some(ActionRequest::BetFrom(next_player)))
+                                        self.status = PokerStatus::Betting {
+                                            target: next_player,
+                                            until,
+                                            raised,
+                                            max_stake,
+                                            next_stage,
+                                        };
+                                        Ok(())
                                     } else {
                                         // Finish betting round. All players call last raised stake.
-                                        Ok(Some(self.start_stage(next_stage)))
+                                        self.start_stage(next_stage);
+                                        Ok(())
                                     }
                                 }
                             }

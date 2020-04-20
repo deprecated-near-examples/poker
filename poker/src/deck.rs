@@ -50,7 +50,7 @@ impl Default for DeckStatus {
     }
 }
 
-#[derive(BorshDeserialize, BorshSerialize, Default, Serialize)]
+#[derive(BorshDeserialize, BorshSerialize, Default, Serialize, Clone)]
 pub struct Deck {
     status: DeckStatus,
     players: Vec<AccountId>,

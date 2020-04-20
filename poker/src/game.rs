@@ -1,7 +1,6 @@
-use crate::deck::DeckError;
-use crate::deck::{Deck, DeckStatus};
-use crate::types::CryptoHash;
-use crate::{poker::Poker, types::RoomId};
+use crate::deck::{Deck, DeckError, DeckStatus};
+use crate::poker::{Poker, PokerStatus};
+use crate::types::{CryptoHash, RoomId};
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::Serialize;
 
@@ -26,6 +25,8 @@ pub enum GameStatus {
     Idle,
     // Need action by some player in deck.
     DeckAction(DeckStatus),
+    // Need action by some player in poker.
+    PokerAction(PokerStatus),
     // Game have been closed
     Closed,
 }
@@ -47,7 +48,7 @@ pub struct Game {
     pub id: RoomId,
     pub status: GameStatus,
     deck: Deck,
-    raw_poker: Poker,
+    poker: Poker,
 }
 
 impl Game {
@@ -55,9 +56,9 @@ impl Game {
         Self {
             name,
             id,
-            status: GameStatus::DeckAction(DeckStatus::Initiating),
+            status: GameStatus::Initiating,
             deck: Deck::new(52),
-            raw_poker: Poker::new(),
+            poker: Poker::new(),
         }
     }
 
@@ -65,7 +66,7 @@ impl Game {
         self.deck.enter().map_err(Into::<GameError>::into)?;
         // TODO: Use near tokens
         // TODO: Put min tokens / max tokens caps
-        self.raw_poker.new_player(1000);
+        self.poker.new_player(1000);
         Ok(())
     }
 
@@ -94,9 +95,27 @@ impl Game {
 
     /// Currently in deck action
     fn check_next_status(&mut self) {
-        if self.deck.get_status() != DeckStatus::Running {
+        let deck_status = self.deck.get_status();
+
+        if deck_status != DeckStatus::Running {
+            self.status = GameStatus::DeckAction(deck_status);
             return;
         }
+
+        // TODO: Here
+        self.poker.next()
+    }
+
+    pub fn deck_state(&self) -> Deck {
+        self.deck.clone()
+    }
+
+    pub fn poker_state(&self) -> Poker {
+        self.poker.clone()
+    }
+
+    pub fn state(&self) -> GameStatus {
+        self.status.clone()
     }
 
     // TODO: Implement this method to find guilty that stalled the game.

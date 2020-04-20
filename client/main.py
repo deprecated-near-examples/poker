@@ -2,17 +2,22 @@ import argparse
 import json
 
 from lib import App, register
+from watcher import watch
 
 CONTRACT = 'poker'
 
 
-class Deck(App):
+class PokerCli(App):
     @register(name="list")
     def list_all(self):
         rooms = [(int(room['id']), room['name'], room['status'])
                  for room in self.near.view("all_rooms", {})]
-        rooms.sort()
 
+        if len(rooms) == 0:
+            print("No rooms found.")
+            return
+
+        rooms.sort()
         for room_id, name, status in rooms:
             print(f"{room_id:>03} {name} {status}")
 
@@ -26,12 +31,21 @@ class Deck(App):
         room_id = int(room_id)
         result = self.near.change("enter", dict(room_id=room_id))
         print(result)
+        watch(self.near, room_id)
 
-    @register(name="start")
+    @register(short="t", name="start")
     def _start(self, room_id):
         room_id = int(room_id)
         result = self.near.change("start", dict(room_id=room_id))
         print(result)
+
+    @register
+    def state(self, room_id):
+        pass
+
+    @register
+    def deck(self, room_id):
+        pass
 
 
 if __name__ == '__main__':
@@ -42,5 +56,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    app = Deck(args.node_key, args.contract)
+    app = PokerCli(args.node_key, args.contract)
     app.start()
