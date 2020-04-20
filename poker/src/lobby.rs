@@ -1,5 +1,6 @@
 use crate::deck::Deck;
 use crate::game::{Game, GameError, GameStatus};
+use crate::poker::BetAction;
 use crate::poker::Poker;
 use crate::types::{CryptoHash, RoomId};
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -94,7 +95,7 @@ impl Lobby {
     }
 }
 
-/// Game interface for lobby
+/// Game interface for Lobby
 #[near_bindgen]
 impl Lobby {
     pub fn enter(&mut self, room_id: RoomId) -> Result<(), GameError> {
@@ -122,7 +123,7 @@ impl Lobby {
     }
 }
 
-/// Deck interface for lobby
+/// Deck interface for Lobby
 #[near_bindgen]
 impl Lobby {
     pub fn get_partial_shuffle(&self, room_id: RoomId) -> Result<Vec<CryptoHash>, GameError> {
@@ -153,5 +154,13 @@ impl Lobby {
         self.room_mut(room_id)?
             .submit_reveal_part(card)
             .map_err(Into::into)
+    }
+}
+
+/// Poker interface for Lobby
+#[near_bindgen]
+impl Lobby {
+    pub fn submit_bet_action(&mut self, room_id: RoomId, bet: BetAction) -> Result<(), GameError> {
+        self.room_mut(room_id)?.submit_bet_action(bet)
     }
 }

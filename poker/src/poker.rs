@@ -1,6 +1,8 @@
+use crate::types::CardId;
+use crate::types::CryptoHash;
 use crate::types::PlayerId;
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(BorshDeserialize, BorshSerialize, Serialize, Clone, PartialEq, Eq)]
 pub enum Stage {
@@ -35,6 +37,7 @@ pub enum PokerStatus {
     Idle,
     Dealing {
         player_id: PlayerId,
+        card_id: CardId,
         first_card: bool,
     },
     Betting {
@@ -51,16 +54,18 @@ pub enum PokerStatus {
     },
     Revealing {
         stage: Stage,
+        card_id: CardId,
         missing_to_reveal: u8,
     },
     Showdown {
         player_id: PlayerId,
+        card_id: CardId,
         first_card: bool,
     },
     WaitingRevealedCards,
 }
 
-#[derive(Debug)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Debug)]
 pub enum PokerError {
     InvalidPlayerId,
 
@@ -71,14 +76,15 @@ pub enum PokerError {
     NotBettingTurn,
 }
 
+#[derive(Serialize, Deserialize)]
 pub enum BetAction {
     Fold,
     Stake(u64),
 }
 
 pub struct ActionResponse {
-    player_id: PlayerId,
-    action: BetAction,
+    pub player_id: PlayerId,
+    pub action: BetAction,
 }
 
 // TODO: Remove automatically from the game players with 0 tokens.
@@ -94,11 +100,13 @@ pub struct Poker {
     /// Players that have already folded its cards in this turn.
     folded: Vec<bool>,
     /// Current status.
-    status: PokerStatus,
+    pub status: PokerStatus,
     /// Number of token used for the big blind. This value will double on each game.
     blind_token: u64,
     /// Player which is the big blind on next round.
     big_blind: PlayerId,
+    /// Card on the top of the stack.
+    first_unrevealed_card: CardId,
 }
 
 impl Poker {
@@ -110,6 +118,7 @@ impl Poker {
             status: PokerStatus::Idle,
             blind_token: 6,
             big_blind: 0,
+            first_unrevealed_card: 0,
         }
     }
 
@@ -168,6 +177,20 @@ impl Poker {
         Ok(())
     }
 
+    pub fn get_status(&self) -> PokerStatus {
+        self.status.clone()
+    }
+
+    /// Get topmost card not used yet. Mark this card as used.
+    fn get_card(&mut self) -> CardId {
+        self.first_unrevealed_card += 1;
+        self.first_unrevealed_card - 1
+    }
+
+    fn card_id_from_player(&self, player_id: PlayerId, first_card: bool) -> CardId {
+        2 * player_id + (!first_card as u64)
+    }
+
     pub fn next(&mut self) {
         match self.status.clone() {
             PokerStatus::Idle => {
@@ -178,16 +201,19 @@ impl Poker {
 
                 self.status = PokerStatus::Dealing {
                     player_id: 0,
+                    card_id: self.get_card(),
                     first_card: true,
                 };
             }
             PokerStatus::Dealing {
                 player_id,
                 first_card,
+                ..
             } => {
                 if first_card {
                     self.status = PokerStatus::Dealing {
                         player_id,
+                        card_id: self.get_card(),
                         first_card: false,
                     };
                 } else {
@@ -204,6 +230,7 @@ impl Poker {
                     } else {
                         self.status = PokerStatus::Dealing {
                             player_id: player_id + 1,
+                            card_id: self.get_card(),
                             first_card: true,
                         };
                     }
@@ -212,6 +239,7 @@ impl Poker {
             PokerStatus::Revealing {
                 stage,
                 missing_to_reveal,
+                ..
             } => {
                 if missing_to_reveal == 0 {
                     // Find next player who have not folded after the big blind.
@@ -226,6 +254,7 @@ impl Poker {
                 } else {
                     self.status = PokerStatus::Revealing {
                         stage,
+                        card_id: self.get_card(),
                         missing_to_reveal: missing_to_reveal - 1,
                     };
                 }
@@ -233,10 +262,12 @@ impl Poker {
             PokerStatus::Showdown {
                 player_id,
                 first_card,
+                ..
             } => {
                 if first_card {
                     self.status = PokerStatus::Showdown {
                         player_id,
+                        card_id: self.card_id_from_player(player_id, false),
                         first_card: false,
                     };
                 } else {
@@ -248,6 +279,7 @@ impl Poker {
                     } else {
                         self.status = PokerStatus::Showdown {
                             player_id: next_player,
+                            card_id: self.card_id_from_player(player_id, true),
                             first_card: true,
                         };
                     }
@@ -260,39 +292,48 @@ impl Poker {
         }
     }
 
-    /// Finish
+    /// Call when the round is over. Update the state of the game for the next round.
     fn finish(&mut self, _winners: Vec<PlayerId>) {
         self.status = PokerStatus::Idle;
         self.big_blind = self.next_player(self.big_blind);
         self.blind_token *= 2;
+        self.first_unrevealed_card = 0;
+
         // TODO: Reassign stake to winners.
         // TODO: Reset state
     }
 
     fn start_stage(&mut self, stage: Stage) {
         if stage == Stage::Showdown {
+            let player_id = self.next_on_game(0);
             self.status = PokerStatus::Showdown {
-                player_id: self.next_on_game(0),
+                player_id,
+                card_id: self.card_id_from_player(player_id, true),
                 first_card: true,
             };
         } else {
             let missing_to_reveal = stage.cards_to_reveal() - 1;
             self.status = PokerStatus::Revealing {
                 stage,
+                card_id: self.get_card(),
                 missing_to_reveal,
             };
         }
     }
 
-    pub fn submit_revealed_cards(&mut self, _cards: ()) {
+    pub fn submit_revealed_cards(&mut self, _cards: Vec<Option<CryptoHash>>) {
         if self.status != PokerStatus::WaitingRevealedCards {
             panic!("Not waiting revealed cards");
         }
 
-        // TODO: Implement cards find
+        // TODO: Find winners from cards revealed.
+
         self.finish(vec![]);
+
+        todo!();
     }
 
+    /// Submit the bet option from the player that is its turn.
     pub fn submit_bet_action(&mut self, action: ActionResponse) -> Result<(), PokerError> {
         match self.status.clone() {
             PokerStatus::Betting {
@@ -336,7 +377,18 @@ impl Poker {
 
                             if stake > max_stake {
                                 // Raise
-                                todo!();
+                                // TODO: Put a lower bound on raising
+                                let next_player =
+                                    self.next_on_game(self.next_player(action.player_id));
+
+                                self.status = PokerStatus::Betting {
+                                    target: next_player,
+                                    until: next_player,
+                                    raised: true,
+                                    max_stake: stake,
+                                    next_stage,
+                                };
+                                Ok(())
                             } else {
                                 // Call
                                 if action.player_id == until {

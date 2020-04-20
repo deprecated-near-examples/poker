@@ -3,8 +3,11 @@ import json
 
 from lib import App, register
 from watcher import watch
+from poker import Poker
 
 CONTRACT = 'poker'
+
+# TODO: Add help to commands
 
 
 class PokerCli(App):
@@ -33,19 +36,42 @@ class PokerCli(App):
         print(result)
         watch(self.near, room_id)
 
-    @register(short="t", name="start")
+    @register(name="start")
     def _start(self, room_id):
         room_id = int(room_id)
         result = self.near.change("start", dict(room_id=room_id))
         print(result)
 
-    @register
+    @register(short="t")
     def state(self, room_id):
-        pass
+        room_id = int(room_id)
+        result = self.near.view("state", dict(room_id=room_id))
+        print(result)
 
     @register
     def deck(self, room_id):
-        pass
+        room_id = int(room_id)
+        result = self.near.view("deck_state", dict(room_id=room_id))
+        print(result)
+
+    @register
+    def poker(self, room_id):
+        room_id = int(room_id)
+        result = self.near.view("poker_state", dict(room_id=room_id))
+        print(result)
+
+    @register(name="raise")
+    def _raise(self, room_id, amount):
+        room_id = int(room_id)
+        amount = int(amount)
+        self.near.change("submit_bet_action", dict(
+            room_id=room_id, bet={"Stake": amount}))
+
+    @register
+    def fold(self, room_id):
+        room_id = int(room_id)
+        self.near.change("submit_bet_action", dict(
+            room_id=room_id, bet="Fold"))
 
 
 if __name__ == '__main__':

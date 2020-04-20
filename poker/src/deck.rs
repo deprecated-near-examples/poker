@@ -5,7 +5,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use near_bindgen::env;
 use serde::Serialize;
 
-#[derive(Serialize, BorshDeserialize, BorshSerialize)]
+#[derive(Serialize, BorshDeserialize, BorshSerialize, Debug)]
 pub enum DeckError {
     DeckAlreadyInitiated,
     DeckNotInShufflingState,
@@ -15,7 +15,7 @@ pub enum DeckError {
     InvalidTurn,
     InvalidPlayerId,
     InvalidCardId,
-    /// Tried to fetch revealed card, but it is not reveled yet.
+    /// Tried to fetch revealed card, but it is not revealed yet.
     CardNotRevealed,
     /// Tried to reveal part but not in revealing state
     NotRevealing,
@@ -55,7 +55,7 @@ pub struct Deck {
     status: DeckStatus,
     players: Vec<AccountId>,
     cards: Vec<CryptoHash>,
-    revealed: Vec<Option<CryptoHash>>,
+    pub revealed: Vec<Option<CryptoHash>>,
 }
 
 impl Deck {
@@ -78,7 +78,7 @@ impl Deck {
         self.players.len() as u64
     }
 
-    fn get_player_id(&self) -> Result<PlayerId, DeckError> {
+    pub fn get_player_id(&self) -> Result<PlayerId, DeckError> {
         let account_id = env::signer_account_id();
         self.players
             .iter()
@@ -87,7 +87,6 @@ impl Deck {
             .ok_or(DeckError::PlayerNotInGame)
     }
 
-    // TODO: Upperbound on the maximum number of players
     pub fn enter(&mut self) -> Result<(), DeckError> {
         if self.status == DeckStatus::Initiating {
             let account_id = env::signer_account_id();
@@ -131,7 +130,6 @@ impl Deck {
         }
     }
 
-    // TODO: Allow only one account to interact with admin functions.
     pub fn close(&mut self) {
         self.status = DeckStatus::Closed;
     }

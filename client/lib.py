@@ -60,7 +60,7 @@ class Near:
             self.account_id
         ]
         logging.debug(f"View Command: {command}")
-        proc = Popen(command, stdout=PIPE, stderr=PIPE)
+        proc = Popen(command, stdout=PIPE)
 
         ret = proc.wait()
         logging.debug(f"Exit code: {ret}")
@@ -68,7 +68,7 @@ class Near:
             result = proc.stdout.read().decode()
             return self._parse(result)
         else:
-            logging.warn(f"Command stderr: {proc.stderr.read().decode()}")
+            logging.warn(f"Command stdout: {proc.stdout.read().decode()}")
 
     def change(self, name, args={}):
         command = [
@@ -92,7 +92,7 @@ class Near:
             result = proc.stdout.read().decode()
             return self._parse(result)
         else:
-            logging.warn(f"Command stderr: {proc.stderr.read().decode()}")
+            logging.warn(f"Command stdout: {proc.stdout.read().decode()}")
 
 
 def register(function=None, *, short=None, name=None):
