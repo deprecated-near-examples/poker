@@ -1,6 +1,6 @@
 # Poker
 
-Play poker online poker without third parties (and without fees). Bet with NEAR. **Profit**.
+Play online poker without third parties (and without fees). Bet with NEAR. **Profit**.
 Based on [Mental Poker](https://en.wikipedia.org/wiki/Mental_poker) algorithm [proposed by Shamir, Rivest, Adleman](https://apps.dtic.mil/dtic/tr/fulltext/u2/a066331.pdf).
 
 ## Security details
@@ -21,11 +21,13 @@ The `poker` contract is a "fair game" with some caveats.
 
 ## Setup
 
-1. `npm install -g near-shell`
+1. `npm install -g near-shell`. This will create a global command `near`. Check with `near --version`.
 
 2. `pip install -r client/requirements.txt`
 
-3. Login with wallet. Make sure you have access to you keys, usually they are stored on `neardev/**/<account_id>.json`
+3. Log in with wallet. Make sure you have access to you keys, usually they are stored on `neardev/**/<account_id>.json`
+    - Create an account at [the wallet](https://wallet.nearprotocol.com/).
+    - Log in using `near login`
 
 4. Launch the python client: `python3 client /path/to/account_id_key.json`
 
@@ -211,7 +213,7 @@ And alice:
 
 Staked column denotes how much is at stake at this moment by every participant. Initially there is a big blind of 6 token by player at seat 1, and small blind by previous player (at seat n). Player next to the big blind is first to play, in this case alice at seat 2.
 
-Turn column is denotes which player should play and what is the expected type of action from it.
+Turn column denotes which player should play and what is the expected type of action from it.
 User interaction in the middle of a round is only required on state `Betting`.
 
 For the purpose of demonstration we will show the point of view of each player. You can notice which player we are referring to from the context of from the name in the prompt.
@@ -292,11 +294,32 @@ Notice in the bottom of the board the three cards revealed on the *Flop*.
 
 Up to this point you have the basics about how to interact with this tool. Notice that rounds might take long time since it requires communication with the blockchain sequentially (not in parallel) from all players.
 
-## Roadmap
+## Deploying the poker contract
+
+1. Login with the account you will use to fund the contract. (Let's call it `macboy`).
+
+2. Create the account to deploy the contract (Let's call it `poker`)
+
+    `near create_account poker --masterAccount macboy --initialBalance 100 --keyPath neardev/default/macboy.json`
+
+3. Build the contract. Requires to have [rust installed](https://www.rust-lang.org/tools/install).
+
+    `./scripts/build.sh`
+
+4. Deploy the binary:
+
+    `near deploy --wasmFile res/poker.wasm  --accountId poker --keyPath neardev/default/poker.json`
+
+## Disclaimer
+
+This project is work in progress, it is missing some features and has some bugs. See TODO in the code for more details.
+
+### Roadmap
 
 1. Determine round winners and give pot back to them.
 2. Use NEAR tokens.
 3. Player who loose al its cash should be removed from the game.
 4. Slash participant that stalls the game and recover from that state.
 5. Add ZK-Proof to avoid invalid data while interacting with the deck.
+    - [Shuffle and encrypt](http://www.csc.kth.se/~terelius/TeWi10Full.pdf)
 6. Improve communication performance.
