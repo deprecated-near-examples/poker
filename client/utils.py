@@ -19,3 +19,14 @@ def load(name):
 
     with open(target) as f:
         return json.load(f)
+
+
+def get(dic, *keys):
+    for key in keys:
+        try:
+            if not key in dic:
+                return None
+        except TypeError:
+            return None
+        dic = dic[key]
+    return dic

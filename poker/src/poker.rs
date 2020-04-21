@@ -266,6 +266,7 @@ impl Poker {
                     };
                 }
             }
+            // TODO: Fix issue with infinite showdown loop
             PokerStatus::Showdown {
                 player_id,
                 first_card,

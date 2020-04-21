@@ -1,5 +1,6 @@
 import io
 from lib import logging
+from utils import get
 
 SUITES = '♥♠♦♣'
 VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
@@ -8,17 +9,6 @@ VALUES = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
 def card(num):
     num = int(num)
     return VALUES[num % 13] + SUITES[num // 13]
-
-
-def get(dic, *keys):
-    for key in keys:
-        try:
-            if not key in dic:
-                return None
-        except TypeError:
-            return None
-        dic = dic[key]
-    return dic
 
 
 def build_table(table_i):
@@ -154,6 +144,7 @@ class PokerUI:
                     ["Name", "Cards", "Total", "Staked", "On Game", "Turn"],
                 ]
 
+                # TODO: Show revealed cards after showdown.
                 if len(self.cards) > 0:
                     my_cards = ' '.join(map(card, self.cards))
                 else:

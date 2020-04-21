@@ -76,6 +76,7 @@ impl Game {
         Ok(())
     }
 
+    // TODO: An idle game should be started by all players.
     pub fn start(&mut self) -> Result<(), GameError> {
         match self.status {
             GameStatus::Initiating | GameStatus::Idle => {
@@ -161,7 +162,6 @@ impl Game {
         self.deck.get_player_id().map_err(Into::into)
     }
 
-    // TODO: Implement this method to find guilty that stalled the game.
     /// Current player that should make an action.
     pub fn get_turn(&self) -> Option<PlayerId> {
         match self.status {

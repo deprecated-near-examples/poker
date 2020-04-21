@@ -6,7 +6,7 @@ import hashlib
 
 from cryptography import encrypt_and_shuffle, partial_decrypt, generate_secret_key
 from poker import Poker
-from utils import load, dump
+from utils import load, dump, get
 
 
 class PokerRoomWatcher(threading.Thread):
@@ -32,7 +32,8 @@ class PokerRoomWatcher(threading.Thread):
         dump(self.filename("secret_key"), self.secret_key)
 
     def find_player_id(self):
-        players = self.poker.deck_state()['Ok']['players']
+        players = get(self.poker.deck_state(), 'Ok', 'players')
+
         if not self.near.account_id in players:
             logging.debug(
                 f"{self.near.account_id} is not in game {self.room_id}. Found: {players}")
@@ -53,19 +54,17 @@ class PokerRoomWatcher(threading.Thread):
                              self._deck_state, self._poker_state, self._turn)
 
     def is_deck_action(self):
-        try:
-            return self._state['Ok'] == 'DeckAction'
-        except KeyError:
-            return False
+        return get(self._state, 'Ok') == 'DeckAction'
 
     def check_deck_shuffling(self):
         if not self.is_deck_action():
             return
 
-        try:
-            index = int(self._deck_state['Ok']['status']['Shuffling'])
-        except KeyError:
+        index = get(self._deck_state, 'Ok', 'status', 'Shuffling')
+
+        if index is None:
             return
+        index = int(index)
 
         if index != self.player_id:
             return
@@ -95,21 +94,22 @@ class PokerRoomWatcher(threading.Thread):
         if not self.is_deck_action():
             return
 
-        try:
-            index = int(self._deck_state['Ok']
-                        ['status']['Revealing']['turn'])
-        except KeyError:
+        index = get(self._deck_state, 'Ok', 'status', 'Revealing', 'turn')
+
+        if index is None:
             return
+
+        index = int(index)
 
         if index != self.player_id:
             return
 
-        progress = int(self._deck_state['Ok']
-                       ['status']['Revealing']['progress'])
+        progress = int(get(self._deck_state, 'Ok',
+                           'status', 'Revealing', 'progress'))
 
         progress = str(partial_decrypt(progress, self.secret_key))
 
-        if self._deck_state['Ok']['status']['Revealing']['receiver'] == self.player_id:
+        if get(self._deck_state, 'Ok', 'status', 'Revealing', 'receiver') == self.player_id:
             self.on_receive_card(int(progress) - 2)
             self.poker.finish_reveal()
         else:
