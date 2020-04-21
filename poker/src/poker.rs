@@ -181,6 +181,13 @@ impl Poker {
         self.status.clone()
     }
 
+    pub fn get_turn(&self) -> Option<PlayerId> {
+        match self.status {
+            PokerStatus::Betting { target, .. } => Some(target),
+            _ => None,
+        }
+    }
+
     /// Get topmost card not used yet. Mark this card as used.
     fn get_card(&mut self) -> CardId {
         self.first_unrevealed_card += 1;

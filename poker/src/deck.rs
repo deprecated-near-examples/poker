@@ -114,6 +114,14 @@ impl Deck {
         self.status.clone()
     }
 
+    pub fn get_turn(&self) -> Option<PlayerId> {
+        match self.status {
+            DeckStatus::Closed | DeckStatus::Running | DeckStatus::Initiating => None,
+            DeckStatus::Shuffling(player_id) => Some(player_id),
+            DeckStatus::Revealing { turn, .. } => Some(turn),
+        }
+    }
+
     pub fn get_revealed_card(&self, card_id: CardId) -> Result<CryptoHash, DeckError> {
         self.revealed
             .get(card_id as usize)

@@ -2,6 +2,7 @@ use crate::deck::Deck;
 use crate::game::{Game, GameError, GameStatus};
 use crate::poker::BetAction;
 use crate::poker::Poker;
+use crate::types::PlayerId;
 use crate::types::{CryptoHash, RoomId};
 use borsh::{BorshDeserialize, BorshSerialize};
 use near_bindgen::near_bindgen;
@@ -120,6 +121,10 @@ impl Lobby {
 
     pub fn state(&self, room_id: RoomId) -> Result<GameStatus, GameError> {
         Ok(self.room_ref(room_id)?.state())
+    }
+
+    pub fn get_turn(&self, room_id: RoomId) -> Result<Option<PlayerId>, GameError> {
+        Ok(self.room_ref(room_id)?.get_turn())
     }
 }
 

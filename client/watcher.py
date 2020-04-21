@@ -23,7 +23,7 @@ class PokerRoomWatcher(threading.Thread):
     def load(self):
         # Load cards
         self.cards = load(self.filename("cards")) or []
-        self.ui.cards = self.cards
+        self.ui.cards = self.cards[:]
 
         # Load secret key
         self.secret_key = load(self.filename(
@@ -48,8 +48,9 @@ class PokerRoomWatcher(threading.Thread):
         self._state = self.poker.state()
         self._deck_state = self.poker.deck_state()
         self._poker_state = self.poker.poker_state()
+        self._turn = self.poker.get_turn()
         self.ui.update_state(self.room_id, self._state,
-                             self._deck_state, self._poker_state)
+                             self._deck_state, self._poker_state, self._turn)
 
     def is_deck_action(self):
         try:
@@ -83,9 +84,12 @@ class PokerRoomWatcher(threading.Thread):
         return f"{self.near.account_id}-{self.room_id}-{mode}-{suffix}"
 
     def on_receive_card(self, card):
+        if card in self.cards:
+            return
+
         self.cards.append(card)
         dump(self.filename("cards"), self.cards)
-        ui.update_card(self.room_id, card)
+        self.ui.update_card(self.room_id, card)
 
     def check_revealing(self):
         if not self.is_deck_action():

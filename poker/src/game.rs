@@ -158,8 +158,14 @@ impl Game {
     }
 
     // TODO: Implement this method to find guilty that stalled the game.
-    // /// Current player that should make an action.
-    // pub fn required_action(&self) -> Option<PlayerId> {}
+    /// Current player that should make an action.
+    pub fn get_turn(&self) -> Option<PlayerId> {
+        match self.status {
+            GameStatus::Closed | GameStatus::Idle | GameStatus::Initiating => None,
+            GameStatus::DeckAction => self.deck.get_turn(),
+            GameStatus::PokerAction => self.poker.get_turn(),
+        }
+    }
 
     // TODO: Mechanism to slash participants that are stalling the game
     //       Discussion: Using some number of epochs, elapsed without inactivity.

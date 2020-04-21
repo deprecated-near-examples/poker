@@ -25,6 +25,10 @@ class Poker:
     def get_partial_shuffle(self):
         pass
 
+    @view_function
+    def get_turn(self):
+        pass
+
     def submit_partial_shuffle(self, partial_shuffle):
         self.near.change("submit_shuffled", dict(
             room_id=self.room_id, new_cards=partial_shuffle))
