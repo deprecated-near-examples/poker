@@ -1,1 +1,1 @@
-git+git@github.com:mfornet/relaxedjson.py.git
+git+https://github.com/mfornet/relaxedjson.py
