@@ -1,6 +1,13 @@
 import random
 
-MOD = 1000000007
+# Some primer numbers of different magnitudes.
+# 1000000007
+# 1000000000039
+# 1000000000000000003
+# 1000000000000000000000007
+# 1000000000000000000000000000057
+# Big prime number. Increase it for more security.
+MOD = 1000000000000000003
 
 
 def extended_gcd(a, b):
@@ -15,6 +22,13 @@ def extended_gcd(a, b):
         old_t, t = t, old_t - q * t
 
     return old_r, old_s, old_t
+
+
+def generate_secret_key():
+    while True:
+        sk = random.randint(100, MOD - 1)
+        if extended_gcd(sk, MOD - 1)[0] == 1:
+            return sk
 
 
 def inverse(a, mod):

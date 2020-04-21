@@ -4,6 +4,7 @@ import json
 from lib import App, register
 from watcher import watch
 from poker import Poker
+from ui import PokerUI
 
 CONTRACT = 'poker'
 
@@ -33,31 +34,13 @@ class PokerCli(App):
     def enter(self, room_id):
         room_id = int(room_id)
         result = self.near.change("enter", dict(room_id=room_id))
-        print(result)
-        watch(self.near, room_id)
+        self.ui.enter(room_id)
+        watch(self.near, room_id, self.ui)
 
     @register(name="start")
     def _start(self, room_id):
         room_id = int(room_id)
         result = self.near.change("start", dict(room_id=room_id))
-        print(result)
-
-    @register(short="t")
-    def state(self, room_id):
-        room_id = int(room_id)
-        result = self.near.view("state", dict(room_id=room_id))
-        print(result)
-
-    @register
-    def deck(self, room_id):
-        room_id = int(room_id)
-        result = self.near.view("deck_state", dict(room_id=room_id))
-        print(result)
-
-    @register
-    def poker(self, room_id):
-        room_id = int(room_id)
-        result = self.near.view("poker_state", dict(room_id=room_id))
         print(result)
 
     @register(name="raise")
@@ -83,5 +66,5 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    app = PokerCli(args.node_key, args.contract, args.nodeUrl)
+    app = PokerCli(args.node_key, args.contract, args.nodeUrl, PokerUI())
     app.start()

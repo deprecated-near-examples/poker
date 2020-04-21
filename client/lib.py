@@ -30,10 +30,10 @@ class Command:
 
 
 class Near:
-    def __init__(self, node_key_path, contract, nodeUrl):
+    def __init__(self, node_key_path, contract, node_url):
         self.node_key_path = node_key_path
         self.contract = contract
-        self.node_url = nodeUrl
+        self.node_url = node_url
         self.account_id = get_account_id(node_key_path)
 
     def _parse(self, output):
@@ -65,7 +65,7 @@ class Near:
             "--masterAccount",
             self.account_id
         ]
-        command = self.add_node_url(command)
+        command = self.add_command_url(command)
 
         logging.debug(f"View Command: {command}")
         proc = Popen(command, stdout=PIPE)
@@ -90,7 +90,7 @@ class Near:
             "--accountId",
             self.account_id
         ]
-        command = self.add_node_url(command)
+        command = self.add_command_url(command)
 
         logging.debug(f"Change Command: {command}")
         proc = Popen(command, stdout=PIPE)
@@ -120,8 +120,10 @@ def register(function=None, *, short=None, name=None):
 
 
 class App:
-    def __init__(self, node_key_path, contract):
-        self.near = Near(node_key_path, contract)
+    def __init__(self, node_key_path, contract, node_url, ui):
+        self.near = Near(node_key_path, contract, node_url)
+        self.ui = ui
+        self.ui.set_account_id(self.near.account_id)
         self._commands = {}
         for func_name in dir(self):
             if func_name.startswith('__'):
@@ -176,5 +178,6 @@ class App:
         logging.info(f"Start game with: {self.account_id}")
 
         while True:
-            command = input(">>> ")
+            self.ui.display()
+            command = input()
             self.feed(command)

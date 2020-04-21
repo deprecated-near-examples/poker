@@ -1,23 +1,35 @@
 import logging
 import threading
 import time
+import os
+import hashlib
 
-from cryptography import encrypt_and_shuffle, partial_decrypt
+from cryptography import encrypt_and_shuffle, partial_decrypt, generate_secret_key
 from poker import Poker
+from utils import load, dump
 
 
 class PokerRoomWatcher(threading.Thread):
-    def __init__(self, near, room_id):
+    def __init__(self, near, room_id, ui):
+        self.ui = ui
         self.room_id = room_id
         self.near = near
         self.poker = Poker(near, room_id)
         self.player_id = None
+        self.cards = []
+        self.load()
         super().__init__()
 
-    # TODO: Persist secret keys using (account_id-contract_id-room_id-NODE_ENV.json)
-    # Generate secret keys
-    def load_secret_key(self):
-        self.secret_key = 5
+    def load(self):
+        # Load cards
+        self.cards = load(self.filename("cards")) or []
+        self.ui.cards = self.cards
+
+        # Load secret key
+        self.secret_key = load(self.filename(
+            "secret_key")) or generate_secret_key()
+        self.secret_key = int(self.secret_key)
+        dump(self.filename("secret_key"), self.secret_key)
 
     def find_player_id(self):
         players = self.poker.deck_state()['Ok']['players']
@@ -26,7 +38,6 @@ class PokerRoomWatcher(threading.Thread):
                 f"{self.near.account_id} is not in game {self.room_id}. Found: {players}")
             return True
         else:
-            self.load_secret_key()
             self.player_id = players.index(
                 self.near.account_id)
             logging.debug(
@@ -37,6 +48,8 @@ class PokerRoomWatcher(threading.Thread):
         self._state = self.poker.state()
         self._deck_state = self.poker.deck_state()
         self._poker_state = self.poker.poker_state()
+        self.ui.update_state(self.room_id, self._state,
+                             self._deck_state, self._poker_state)
 
     def is_deck_action(self):
         try:
@@ -63,6 +76,17 @@ class PokerRoomWatcher(threading.Thread):
         partial_shuffle = [str(value) for value in partial_shuffle]
         self.poker.submit_partial_shuffle(partial_shuffle)
 
+    def filename(self, mode):
+        node_env = os.environ.get("NODE_ENV", "")
+        chain_enc = f"{self.near.node_url}-{self.near.contract}-{node_env}"
+        suffix = hashlib.md5(chain_enc.encode()).hexdigest()[:8]
+        return f"{self.near.account_id}-{self.room_id}-{mode}-{suffix}"
+
+    def on_receive_card(self, card):
+        self.cards.append(card)
+        dump(self.filename("cards"), self.cards)
+        ui.update_card(self.room_id, card)
+
     def check_revealing(self):
         if not self.is_deck_action():
             return
@@ -82,8 +106,7 @@ class PokerRoomWatcher(threading.Thread):
         progress = str(partial_decrypt(progress, self.secret_key))
 
         if self._deck_state['Ok']['status']['Revealing']['receiver'] == self.player_id:
-            # TODO: Store card
-            print("Card:", progress, int(progress) - 2)
+            self.on_receive_card(int(progress) - 2)
             self.poker.finish_reveal()
         else:
             self.poker.submit_reveal_part(progress)
@@ -108,11 +131,11 @@ class PokerRoomWatcher(threading.Thread):
 WATCHING = set()
 
 
-def watch(near, room_id):
+def watch(near, room_id, ui):
     if room_id in WATCHING:
         logging.debug(f"Already watching room: {room_id}")
         return
 
     WATCHING.add(room_id)
-    PokerRoomWatcher(near, room_id).start()
+    PokerRoomWatcher(near, room_id, ui).start()
     logging.debug(f"Start watching room: {room_id}")
