@@ -100,7 +100,10 @@ impl Game {
 
     fn check_status(&mut self) {
         self.status = match self.poker.status {
-            PokerStatus::Idle => GameStatus::Idle,
+            PokerStatus::Idle => {
+                self.deck.close();
+                GameStatus::Idle
+            }
             PokerStatus::Dealing {
                 player_id, card_id, ..
             } => {
@@ -123,6 +126,7 @@ impl Game {
             }
             PokerStatus::WaitingRevealedCards => {
                 self.poker.submit_revealed_cards(self.deck.revealed.clone());
+                self.deck.close();
                 GameStatus::Idle
             }
         };

@@ -7,7 +7,7 @@ use serde::Serialize;
 
 #[derive(Serialize, BorshDeserialize, BorshSerialize, Debug)]
 pub enum DeckError {
-    DeckAlreadyInitiated,
+    DeckInProgress,
     DeckNotInShufflingState,
     NotPossibleToStartReveal,
     PlayerAlreadyInGame,
@@ -61,8 +61,8 @@ pub struct Deck {
 impl Deck {
     // TODO: Add password.
     // TODO: Add minimum/maximum amount of players.
-    pub fn new(num_cards: u64) -> Deck {
-        Deck {
+    pub fn new(num_cards: u64) -> Self {
+        Self {
             status: DeckStatus::Initiating,
             players: vec![],
             cards: (0..num_cards).map(|num| num.to_string()).collect(),
@@ -97,16 +97,20 @@ impl Deck {
                 Ok(())
             }
         } else {
-            Err(DeckError::DeckAlreadyInitiated)
+            Err(DeckError::DeckInProgress)
         }
     }
 
     pub fn start(&mut self) -> Result<(), DeckError> {
-        if self.status != DeckStatus::Initiating {
-            Err(DeckError::DeckAlreadyInitiated)
-        } else {
-            self.status = DeckStatus::Shuffling(0);
-            Ok(())
+        match self.status {
+            DeckStatus::Initiating | DeckStatus::Closed => {
+                self.status = DeckStatus::Shuffling(0);
+                let num_cards = self.cards.len();
+                self.cards = (0..num_cards).map(|num| num.to_string()).collect();
+                self.revealed = vec![None; num_cards];
+                Ok(())
+            }
+            _ => Err(DeckError::DeckInProgress),
         }
     }
 

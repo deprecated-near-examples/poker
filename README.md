@@ -1,8 +1,7 @@
-**WARNING**: This project is in WIP.
-
 # Poker
 
 Play poker online poker without third parties (and without fees). Bet with NEAR. **Profit**.
+Based on [Mental Poker](https://en.wikipedia.org/wiki/Mental_poker) algorithm [proposed by Shamir, Rivest, Adleman](https://apps.dtic.mil/dtic/tr/fulltext/u2/a066331.pdf).
 
 ## Start playing
 
