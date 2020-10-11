@@ -13,3 +13,7 @@ serde_json = { git = "https://github.com/nearprotocol/json", rev = "1f5779f3b0bd
 near-bindgen = { version = "0.6.0" }
 borsh = "0.6.1"
 wee_alloc = "0.4.5"
+
+[profile.release]
+# Opt into extra safety checks on arithmetic operations https://stackoverflow.com/a/64136471/249801
+overflow-checks = true
